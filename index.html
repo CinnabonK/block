@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Platform Game</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+        canvas {
+            background-color: #87CEEB;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="gameCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Canvasサイズ設定
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const BLOCK_SIZE = 50; // 1ブロックのサイズ
+    const GRAVITY = 0.5;
+    const PLAYER_SPEED = 5;
+    const JUMP_STRENGTH = 10;
+
+    let keys = {};
+
+    // 画像のロード
+    const playerImage = new Image();
+    playerImage.src = 'player.png'; // プレイヤーの画像
+
+    const grassImage = new Image();
+    grassImage.src = 'grass.png'; // 草ブロックの画像
+
+    const dirtImage = new Image();
+    dirtImage.src = 'dirt.png'; // 土ブロックの画像
+
+    const backgroundImage = new Image();
+    backgroundImage.src = 'background.png'; // 背景の画像
+
+    class Player {
+        constructor() {
+            this.width = 40;
+            this.height = 40;
+            this.x = 100;
+            this.y = canvas.height - BLOCK_SIZE * 6;  // 初期Y座標を修正
+            this.velocityX = 0;
+            this.velocityY = 0;
+            this.isJumping = false;
+            this.isWallKicking = false;
+        }
+
+        draw() {
+            ctx.drawImage(playerImage, this.x, this.y, this.width, this.height);
+        }
+
+        update(terrain) {
+            // 移動
+            if (keys['ArrowLeft']) {
+                this.velocityX = -PLAYER_SPEED;
+            } else if (keys['ArrowRight']) {
+                this.velocityX = PLAYER_SPEED;
+            } else {
+                this.velocityX = 0;
+            }
+
+            // ジャンプ処理
+            if (keys['Space'] && !this.isJumping) {
+                this.velocityY = -JUMP_STRENGTH;
+                this.isJumping = true;
+            }
+
+            // 重力処理
+            this.velocityY += GRAVITY;
+
+            // 座標更新
+            this.x += this.velocityX;
+            this.y += this.velocityY;
+
+            // 地形との衝突処理
+            terrain.forEach(block => {
+                const groundLevel = block.y;
+
+                // 衝突判定 (プレイヤーがブロックの上に立っているか確認)
+                if (this.x < block.x + BLOCK_SIZE && this.x + this.width > block.x && this.y + this.height >= groundLevel) {
+                    this.velocityY = 0;
+                    this.isJumping = false;
+                    this.y = groundLevel - this.height;  // 草の上に正しく立つ
+                }
+            });
+
+            // 壁キック
+            if (this.isJumping && keys['ArrowLeft'] && this.x <= 0) {
+                this.velocityY = -JUMP_STRENGTH;
+                this.isWallKicking = true;
+            }
+        }
+    }
+
+    // コースの定義
+    const terrain = [];
+
+    // d(x): x個の土ブロックを下方向にクローン
+    function d(clones = 1) {
+        let blocks = [];
+        for (let i = 0; i < Math.abs(clones); i++) {
+            blocks.push({ type: 'dirt', yOffset: (clones < 0 ? i : -i) * BLOCK_SIZE });
+        }
+        return blocks;
+    }
+
+    // g(x): 草ブロックを生成し、その上にオプションで土を積む
+    function g(overBlock, heightOffset = 0) {
+        let grassBlock = { type: 'grass', yOffset: heightOffset * BLOCK_SIZE };
+        let blocks = [grassBlock];
+
+        // overBlockが指定されている場合は上に積む
+        if (overBlock) {
+            blocks = blocks.concat(overBlock);
+        }
+
+        return blocks;
+    }
+
+    // h(x): 草ブロックの高さを調整
+    function h(height) {
+        return height;
+    }
+
+    // コマンドに基づいてブロックを配置
+    function placeBlock(x, blockSet) {
+        blockSet.forEach(block => {
+            const blockY = canvas.height - (block.yOffset || 0);
+            terrain.push({ x: x * BLOCK_SIZE, y: blockY, type: block.type });
+        });
+    }
+
+    // コマンドの解釈
+    function interpretCommand(x, command) {
+        // ex: g(d(2), h(3)) -> g(d(2), 3) 
+        const matchHeight = command.match(/h\(([^)]+)\)/);
+        const height = matchHeight ? parseInt(matchHeight[1], 10) : 0;
+        
+        if (command.startsWith('g')) {
+            const dirtBlocks = command.includes('d') ? eval(command.match(/d\([^)]+\)/)[0]) : [];
+            placeBlock(x, g(dirtBlocks, height));
+        } else if (command.startsWith('d')) {
+            const dirtCount = parseInt(command.match(/d\(([^)]+)\)/)[1], 10);
+            placeBlock(x, d(dirtCount));
+        }
+    }
+
+    // コースのコマンド設定
+    const courseCommands = [
+        { x: 1, command: 'g(d(2), h(2))' },  // 草の上に土を2つ積み、草を高さ2に配置
+        { x: 2, command: 'g(d(-2), h(3))' }, // 草の下に土を2つ積み、草を高さ3に配置
+        { x: 3, command: 'd(2)' },           // 土を2つ積む
+        { x: 4, command: 'g(h(1))' },        // 草ブロックのみ、高さ1に配置
+    ];
+
+    // コマンドを解釈して地形生成
+    courseCommands.forEach(commandObj => {
+        interpretCommand(commandObj.x, commandObj.command);
+    });
+
+    // プレイヤー初期化
+    const player = new Player();
+
+    // ゲームループ
+    function gameLoop() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 背景の描画
+        ctx.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
+
+        // 地形描画
+        terrain.forEach(block => {
+            if (block.type === 'grass') {
+                ctx.drawImage(grassImage, block.x, block.y - BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+            } else if (block.type === 'dirt') {
+                ctx.drawImage(dirtImage, block.x, block.y - BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+            }
+        });
+
+        // プレイヤーの描画と更新
+        player.update(terrain);
+        player.draw();
+
+        requestAnimationFrame(gameLoop);
+    }
+
+    // キーイベント処理
+    window.addEventListener('keydown', (e) => {
+        keys[e.key] = true;
+    });
+
+    window.addEventListener('keyup', (e) => {
+        keys[e.key] = false;
+    });
+
+    // ゲームループ開始
+    gameLoop();
+</script>
+
+</body>
+</html>
