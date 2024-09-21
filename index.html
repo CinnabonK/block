@@ -3,213 +3,341 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Platform Game</title>
+    <title>ブロック崩し</title>
     <style>
         body {
             margin: 0;
-            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
         }
+
         canvas {
-            background-color: #87CEEB;
-            display: block;
+            background-color: #000;
+            border: 2px solid #333;
+        }
+
+        #restartButton {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #0095DD;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        #restartButton:hover {
+            background-color: #007bb5;
+        }
+
+        #gameMessage {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            text-align: center;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+        }
+
+        #gameMessage button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        #gameMessage button:hover {
+            background-color: #218838;
+        }
+
+        .hidden {
+            display: none;
         }
     </style>
 </head>
 <body>
+    <canvas id="gameCanvas"></canvas>
+    <button id="restartButton">リスタート</button>
+    <div id="gameMessage" class="hidden">
+        <h1>クリアおめでとう！</h1>
+        <button id="nextLevelButton">次のレベルへ</button>
+    </div>
+    <script>
+        // Canvas settings
+        const canvasWidth = 800;
+        const canvasHeight = 600;
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
 
-<canvas id="gameCanvas"></canvas>
+        // Game elements
+        const restartButton = document.getElementById('restartButton');
+        const gameMessage = document.getElementById('gameMessage');
+        const nextLevelButton = document.getElementById('nextLevelButton');
 
-<script>
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
+        // Paddle and Ball settings
+        const paddleHeight = 10;
+        const paddleWidth = 100;
+        let paddleX = (canvas.width - paddleWidth) / 2;
 
-    // Canvasサイズ設定
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+        const ballRadius = 10;
+        const initialSpeed = 2;
+        let balls = [];
 
-    const BLOCK_SIZE = 50; // 1ブロックのサイズ
-    const GRAVITY = 0.5;
-    const PLAYER_SPEED = 5;
-    const JUMP_STRENGTH = 10;
+        // Brick settings
+        const brickRowCount = 5;
+        const brickColumnCount = 7;
+        const brickWidth = 75;
+        const brickHeight = 20;
+        const brickPadding = 10;
+        const brickOffsetTop = 30;
+        const brickOffsetLeft = 30;
 
-    let keys = {};
+        let bricks = [];
+        let rightPressed = false;
+        let leftPressed = false;
+        let isGameOver = false;
+        let speedIncreaseFactor = 0.0005;
+        let gameLevel = 1;
+        let shieldHealth = 0;
 
-    // 画像のロード
-    const playerImage = new Image();
-    playerImage.src = 'player.png'; // プレイヤーの画像
+        // Brick types
+        const BRICK_TYPE_NORMAL = 0;
+        const BRICK_TYPE_DOUBLE_BALL = 1;
+        const BRICK_TYPE_SHIELD = 2;
 
-    const grassImage = new Image();
-    grassImage.src = 'grass.png'; // 草ブロックの画像
+        function initGame() {
+            paddleX = (canvas.width - paddleWidth) / 2;
+            balls = [{ x: canvas.width / 2, y: canvas.height - 30, dx: initialSpeed, dy: -initialSpeed }];
+            isGameOver = false;
+            shieldHealth = 0;
 
-    const dirtImage = new Image();
-    dirtImage.src = 'dirt.png'; // 土ブロックの画像
-
-    const backgroundImage = new Image();
-    backgroundImage.src = 'background.png'; // 背景の画像
-
-    class Player {
-        constructor() {
-            this.width = 40;
-            this.height = 40;
-            this.x = 100;
-            this.y = canvas.height - BLOCK_SIZE * 6;  // 初期Y座標を修正
-            this.velocityX = 0;
-            this.velocityY = 0;
-            this.isJumping = false;
-            this.isWallKicking = false;
-        }
-
-        draw() {
-            ctx.drawImage(playerImage, this.x, this.y, this.width, this.height);
-        }
-
-        update(terrain) {
-            // 移動
-            if (keys['ArrowLeft']) {
-                this.velocityX = -PLAYER_SPEED;
-            } else if (keys['ArrowRight']) {
-                this.velocityX = PLAYER_SPEED;
-            } else {
-                this.velocityX = 0;
-            }
-
-            // ジャンプ処理
-            if (keys['Space'] && !this.isJumping) {
-                this.velocityY = -JUMP_STRENGTH;
-                this.isJumping = true;
-            }
-
-            // 重力処理
-            this.velocityY += GRAVITY;
-
-            // 座標更新
-            this.x += this.velocityX;
-            this.y += this.velocityY;
-
-            // 地形との衝突処理
-            terrain.forEach(block => {
-                const groundLevel = block.y;
-
-                // 衝突判定 (プレイヤーがブロックの上に立っているか確認)
-                if (this.x < block.x + BLOCK_SIZE && this.x + this.width > block.x && this.y + this.height >= groundLevel) {
-                    this.velocityY = 0;
-                    this.isJumping = false;
-                    this.y = groundLevel - this.height;  // 草の上に正しく立つ
+            // Brick initialization
+            bricks = [];
+            let brickHealth = 1 + Math.floor(gameLevel / 2);
+            for (let c = 0; c < brickColumnCount; c++) {
+                bricks[c] = [];
+                for (let r = 0; r < brickRowCount; r++) {
+                    const brickType = Math.random() < 0.05 ? BRICK_TYPE_DOUBLE_BALL :
+                                      Math.random() < 0.05 ? BRICK_TYPE_SHIELD : BRICK_TYPE_NORMAL;
+                    bricks[c][r] = { x: 0, y: 0, status: brickHealth, type: brickType };
                 }
+            }
+
+            gameMessage.classList.add('hidden');
+            draw();
+        }
+
+        document.addEventListener("keydown", keyDownHandler, false);
+        document.addEventListener("keyup", keyUpHandler, false);
+
+        function keyDownHandler(e) {
+            if (e.key === "Right" || e.key === "ArrowRight") {
+                rightPressed = true;
+            } else if (e.key === "Left" || e.key === "ArrowLeft") {
+                leftPressed = true;
+            }
+        }
+
+        function keyUpHandler(e) {
+            if (e.key === "Right" || e.key === "ArrowRight") {
+                rightPressed = false;
+            } else if (e.key === "Left" || e.key === "ArrowLeft") {
+                leftPressed = false;
+            }
+        }
+
+        function collisionDetection() {
+            for (let c = 0; c < brickColumnCount; c++) {
+                for (let r = 0; r < brickRowCount; r++) {
+                    const b = bricks[c][r];
+                    if (b.status > 0) {
+                        for (let i = 0; i < balls.length; i++) {
+                            const ball = balls[i];
+                            if (ball.x > b.x && ball.x < b.x + brickWidth && ball.y > b.y && ball.y < b.y + brickHeight) {
+                                ball.dy = -ball.dy;
+                                b.status--;
+
+                                if (b.type === BRICK_TYPE_DOUBLE_BALL && b.status === 0) {
+                                    cloneBall();
+                                } else if (b.type === BRICK_TYPE_SHIELD && b.status === 0) {
+                                    shieldHealth = 5;
+                                }
+
+                                if (checkAllBricksBroken()) {
+                                    showClearScreen();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        function cloneBall() {
+            const originalBall = balls[0];
+            const clonedBall = {
+                x: originalBall.x,
+                y: originalBall.y,
+                dx: originalBall.dx * Math.cos(Math.PI / 4) - originalBall.dy * Math.sin(Math.PI / 4),
+                dy: originalBall.dx * Math.sin(Math.PI / 4) + originalBall.dy * Math.cos(Math.PI / 4)
+            };
+            balls.push(clonedBall);
+        }
+
+        function checkAllBricksBroken() {
+            for (let c = 0; c < brickColumnCount; c++) {
+                for (let r = 0; r < brickRowCount; r++) {
+                    if (bricks[c][r].status > 0) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        function showClearScreen() {
+            gameMessage.querySelector('h1').textContent = `レベル ${gameLevel} クリア！`;
+            gameMessage.classList.remove('hidden');
+            isGameOver = true;
+        }
+
+        function drawBalls() {
+            balls.forEach(ball => {
+                ctx.beginPath();
+                ctx.arc(ball.x, ball.y, ballRadius, 0, Math.PI * 2);
+                ctx.fillStyle = "#0095DD";
+                ctx.fill();
+                ctx.closePath();
+            });
+        }
+
+        function drawPaddle() {
+            ctx.beginPath();
+            ctx.rect(paddleX, canvas.height - paddleHeight, paddleWidth, paddleHeight);
+            ctx.fillStyle = "#0095DD";
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        function drawBricks() {
+            for (let c = 0; c < brickColumnCount; c++) {
+                for (let r = 0; r < brickRowCount; r++) {
+                    if (bricks[c][r].status > 0) {
+                        const brickX = (c * (brickWidth + brickPadding)) + brickOffsetLeft;
+                        const brickY = (r * (brickHeight + brickPadding)) + brickOffsetTop;
+                        bricks[c][r].x = brickX;
+                        bricks[c][r].y = brickY;
+
+                        ctx.beginPath();
+                        ctx.rect(brickX, brickY, brickWidth, brickHeight);
+                        if (bricks[c][r].type === BRICK_TYPE_DOUBLE_BALL) {
+                            ctx.fillStyle = "#FF6347";
+                        } else if (bricks[c][r].type === BRICK_TYPE_SHIELD) {
+                            ctx.fillStyle = "#FFD700";
+                        } else {
+                            ctx.fillStyle = "#0095DD";
+                        }
+                        ctx.fill();
+                        ctx.closePath();
+                    }
+                }
+            }
+        }
+
+        function drawShield() {
+            if (shieldHealth > 0) {
+                ctx.beginPath();
+                ctx.rect(0, canvas.height - 20, canvas.width, 10);
+                ctx.fillStyle = "yellow";
+                ctx.fill();
+                ctx.closePath();
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBricks();
+            drawBalls();
+            drawPaddle();
+            drawShield();
+            collisionDetection();
+
+            balls.forEach((ball, index) => {
+                if (ball.dx > 0) {
+                    ball.dx += speedIncreaseFactor;
+                } else {
+                    ball.dx -= speedIncreaseFactor;
+                }
+
+                if (ball.dy > 0) {
+                    ball.dy += speedIncreaseFactor;
+                } else {
+                    ball.dy -= speedIncreaseFactor;
+                }
+
+                if (ball.x + ball.dx > canvas.width - ballRadius || ball.x + ball.dx < ballRadius) {
+                    ball.dx = -ball.dx;
+                }
+
+                if (ball.y + ball.dy < ballRadius) {
+                    ball.dy = -ball.dy;
+                } else if (ball.y + ball.dy > canvas.height - ballRadius) {
+                    if (ball.x > paddleX && ball.x < paddleX + paddleWidth) {
+                        ball.dy = -ball.dy;
+                    } else {
+                        if (shieldHealth > 0) {
+                            ball.dy = -ball.dy;  // Reflect on shield
+                            shieldHealth--;
+                        } else {
+                            balls.splice(index, 1);  // Remove ball from array when lost
+                        }
+                    }
+                }
+
+                ball.x += ball.dx;
+                ball.y += ball.dy;
             });
 
-            // 壁キック
-            if (this.isJumping && keys['ArrowLeft'] && this.x <= 0) {
-                this.velocityY = -JUMP_STRENGTH;
-                this.isWallKicking = true;
+            if (balls.length === 0) {
+                isGameOver = true;  // Only game over if all balls are lost
+            }
+
+            if (rightPressed && paddleX < canvas.width - paddleWidth) {
+                paddleX += 7;
+            } else if (leftPressed && paddleX > 0) {
+                paddleX -= 7;
+            }
+
+            if (!isGameOver) {
+                requestAnimationFrame(draw);
             }
         }
-    }
 
-    // コースの定義
-    const terrain = [];
-
-    // d(x): x個の土ブロックを下方向にクローン
-    function d(clones = 1) {
-        let blocks = [];
-        for (let i = 0; i < Math.abs(clones); i++) {
-            blocks.push({ type: 'dirt', yOffset: (clones < 0 ? i : -i) * BLOCK_SIZE });
-        }
-        return blocks;
-    }
-
-    // g(x): 草ブロックを生成し、その上にオプションで土を積む
-    function g(overBlock, heightOffset = 0) {
-        let grassBlock = { type: 'grass', yOffset: heightOffset * BLOCK_SIZE };
-        let blocks = [grassBlock];
-
-        // overBlockが指定されている場合は上に積む
-        if (overBlock) {
-            blocks = blocks.concat(overBlock);
-        }
-
-        return blocks;
-    }
-
-    // h(x): 草ブロックの高さを調整
-    function h(height) {
-        return height;
-    }
-
-    // コマンドに基づいてブロックを配置
-    function placeBlock(x, blockSet) {
-        blockSet.forEach(block => {
-            const blockY = canvas.height - (block.yOffset || 0);
-            terrain.push({ x: x * BLOCK_SIZE, y: blockY, type: block.type });
-        });
-    }
-
-    // コマンドの解釈
-    function interpretCommand(x, command) {
-        // ex: g(d(2), h(3)) -> g(d(2), 3) 
-        const matchHeight = command.match(/h\(([^)]+)\)/);
-        const height = matchHeight ? parseInt(matchHeight[1], 10) : 0;
-        
-        if (command.startsWith('g')) {
-            const dirtBlocks = command.includes('d') ? eval(command.match(/d\([^)]+\)/)[0]) : [];
-            placeBlock(x, g(dirtBlocks, height));
-        } else if (command.startsWith('d')) {
-            const dirtCount = parseInt(command.match(/d\(([^)]+)\)/)[1], 10);
-            placeBlock(x, d(dirtCount));
-        }
-    }
-
-    // コースのコマンド設定
-    const courseCommands = [
-        { x: 1, command: 'g(d(2), h(2))' },  // 草の上に土を2つ積み、草を高さ2に配置
-        { x: 2, command: 'g(d(-2), h(3))' }, // 草の下に土を2つ積み、草を高さ3に配置
-        { x: 3, command: 'd(2)' },           // 土を2つ積む
-        { x: 4, command: 'g(h(1))' },        // 草ブロックのみ、高さ1に配置
-    ];
-
-    // コマンドを解釈して地形生成
-    courseCommands.forEach(commandObj => {
-        interpretCommand(commandObj.x, commandObj.command);
-    });
-
-    // プレイヤー初期化
-    const player = new Player();
-
-    // ゲームループ
-    function gameLoop() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // 背景の描画
-        ctx.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
-
-        // 地形描画
-        terrain.forEach(block => {
-            if (block.type === 'grass') {
-                ctx.drawImage(grassImage, block.x, block.y - BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
-            } else if (block.type === 'dirt') {
-                ctx.drawImage(dirtImage, block.x, block.y - BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
-            }
+        restartButton.addEventListener('click', () => {
+            gameLevel = 1;
+            initGame();
         });
 
-        // プレイヤーの描画と更新
-        player.update(terrain);
-        player.draw();
+        nextLevelButton.addEventListener('click', () => {
+            gameLevel++;
+            initGame();
+        });
 
-        requestAnimationFrame(gameLoop);
-    }
-
-    // キーイベント処理
-    window.addEventListener('keydown', (e) => {
-        keys[e.key] = true;
-    });
-
-    window.addEventListener('keyup', (e) => {
-        keys[e.key] = false;
-    });
-
-    // ゲームループ開始
-    gameLoop();
-</script>
-
+        initGame();
+    </script>
 </body>
 </html>
