@@ -66,13 +66,15 @@
             display: none;
         }
     </style>
+ <h4>made by @kiku_kick</h4>
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
     <button id="restartButton">リスタート</button>
     <div id="gameMessage" class="hidden">
-        <h1>クリアおめでとう！</h1>
-        <button id="nextLevelButton">次のレベルへ</button>
+        <h1 id="messageText"></h1>
+        <button id="nextLevelButton" class="hidden">次のレベルへ</button>
+        <button id="retryButton" class="hidden">リトライ</button>
     </div>
     <script>
         // Canvas settings
@@ -86,7 +88,9 @@
         // Game elements
         const restartButton = document.getElementById('restartButton');
         const gameMessage = document.getElementById('gameMessage');
+        const messageText = document.getElementById('messageText');
         const nextLevelButton = document.getElementById('nextLevelButton');
+        const retryButton = document.getElementById('retryButton');
 
         // Paddle and Ball settings
         const paddleHeight = 10;
@@ -98,12 +102,12 @@
         let balls = [];
 
         // Brick settings
-        const brickRowCount = 5;
-        const brickColumnCount = 7;
+        const brickRowCount = 5; //縦のブロックの数
+        const brickColumnCount = 9;//横 "
         const brickWidth = 75;
         const brickHeight = 20;
         const brickPadding = 10;
-        const brickOffsetTop = 30;
+        const brickOffsetTop = 25;
         const brickOffsetLeft = 30;
 
         let bricks = [];
@@ -138,6 +142,8 @@
             }
 
             gameMessage.classList.add('hidden');
+            nextLevelButton.classList.add('hidden');
+            retryButton.classList.add('hidden');
             draw();
         }
 
@@ -209,9 +215,19 @@
             return true;
         }
 
+        // Display "クリアおめでとう" and show next level button
         function showClearScreen() {
-            gameMessage.querySelector('h1').textContent = `レベル ${gameLevel} クリア！`;
+            messageText.textContent = `レベル ${gameLevel} クリアおめでとう！`;
             gameMessage.classList.remove('hidden');
+            nextLevelButton.classList.remove('hidden');
+            isGameOver = true;
+        }
+
+        // Display "ゲームオーバー" and show retry button
+        function showGameOverScreen() {
+            messageText.textContent = "ゲームオーバー";
+            gameMessage.classList.remove('hidden');
+            retryButton.classList.remove('hidden');
             isGameOver = true;
         }
 
@@ -312,8 +328,8 @@
                 ball.y += ball.dy;
             });
 
-            if (balls.length === 0) {
-                isGameOver = true;  // Only game over if all balls are lost
+            if (balls.length === 0 && !isGameOver) {
+                showGameOverScreen();  // Only game over if all balls are lost
             }
 
             if (rightPressed && paddleX < canvas.width - paddleWidth) {
@@ -337,7 +353,11 @@
             initGame();
         });
 
-        initGame();
+        retryButton.addEventListener('click', () => {
+            initGame();  // Restart the same level on retry
+        });
+
+        initGame();  // Start game on page load
     </script>
 </body>
 </html>
