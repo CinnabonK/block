@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ブロック崩し</title>
-    <br/>
-    <h3>made by @kikunohana</h3>
     <style>
         body {
             margin: 0;
@@ -93,26 +91,46 @@
         .hidden {
             display: none;
         }
+
+        /* Matemasie: 数字専用フォント */
+        .matemasie-regular {
+            font-family: "Matemasie", sans-serif;
+            font-weight: 400;
+            font-style: normal;
+        }
+
+        /* Dela Gothic One: 日本語や英語のテキスト用フォント */
+        .dela-gothic-one-regular {
+            font-family: "Dela Gothic One", sans-serif;
+            font-weight: 400;
+            font-style: normal;
+        }
     </style>
-    made by kiku
+
+    <!-- Google Fontsの読み込み -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Matemasie&family=Dela+Gothic+One&display=swap" rel="stylesheet">
+
 </head>
-<body>
+<body class="dela-gothic-one-regular"> <!-- 日本語と英語の全体にDela Gothic Oneを適用 -->
     <canvas id="gameCanvas"></canvas>
-    <button id="restartButton">リスタート</button>
+    <button id="restartButton">リスタート</button> <!-- テキストにDela Gothic Oneが適用される -->
     <div id="gameMessage" class="hidden">
-        <h1 id="messageText">クリアおめでとう！</h1>
+        <h1 id="messageText">クリアおめでとう！</h1> <!-- ゲームメッセージにもDela Gothic Oneが適用 -->
         <button id="restartButtonInMessage">もう一度プレイ</button>
     </div>
-    
+
     <!-- スマホ向け左右移動ボタン -->
     <div id="controls">
-        <button id="leftButton">← 左</button>
-        <button id="rightButton">右 →</button>
+        <button id="leftButton">← 左</button> <!-- テキストにDela Gothic Oneが適用 -->
+        <button id="rightButton">右 →</button> <!-- テキストにDela Gothic Oneが適用 -->
     </div>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+
         const restartButton = document.getElementById('restartButton');
         const gameMessage = document.getElementById('gameMessage');
         const restartButtonInMessage = document.getElementById('restartButtonInMessage');
@@ -120,7 +138,7 @@
         const leftButton = document.getElementById('leftButton');
         const rightButton = document.getElementById('rightButton');
 
-        // スマホ対応のため画面サイズに合わせてキャンバスサイズを変更する
+        // キャンバスのサイズ調整
         let canvasWidth = window.innerWidth * 0.9;
         let canvasHeight = window.innerHeight * 0.7;
 
@@ -139,11 +157,11 @@
 
         const brickRowCount = 5;
         const brickColumnCount = 9;
-        const brickWidth = (canvasWidth - (brickColumnCount + 1) * 10) / brickColumnCount;
-        const brickHeight = canvasHeight * 0.05;
+        let brickWidth = (canvasWidth - (brickColumnCount + 1) * 10) / brickColumnCount;
+        let brickHeight = canvasHeight * 0.05;
         const brickPadding = 10;
         const brickOffsetTop = 25;
-        const brickOffsetLeft = (canvasWidth - (brickColumnCount * brickWidth + (brickColumnCount - 1) * brickPadding)) / 2;
+        let brickOffsetLeft = (canvasWidth - (brickColumnCount * brickWidth + (brickColumnCount - 1) * brickPadding)) / 2;
 
         let bricks = [];
         let rightPressed = false;
@@ -266,6 +284,7 @@
         }
 
         function showLevelUpMessage() {
+            messageText.classList.add('dela-gothic-one-regular'); // Dela Gothic Oneフォントを適用
             messageText.innerText = `レベル ${currentLevel} クリア！次のレベルに進みます`;
             gameMessage.classList.remove('hidden');
             isGameOver = true;
@@ -291,6 +310,7 @@
         }
 
         function showGameClearMessage() {
+            messageText.classList.add('dela-gothic-one-regular'); // Dela Gothic Oneフォントを適用
             messageText.innerText = '全レベルクリアおめでとう！';
             gameMessage.classList.remove('hidden');
             isGameOver = true;
@@ -337,7 +357,7 @@
                         ctx.fill();
                         ctx.closePath();
 
-                        ctx.font = "16px Arial Black"; 
+                        ctx.font = "16px Matemasie"; // Matemasieフォントを適用
                         ctx.fillStyle = "#FFF";
                         ctx.textAlign = "center";
                         ctx.textBaseline = "middle";
@@ -360,7 +380,7 @@
 
         function drawShield() {
             if (shieldHealth > 0) {
-                ctx.font = "16px Arial Black"; 
+                ctx.font = "16px Matemasie"; // Matemasieフォントを適用
                 ctx.fillStyle = "yellow";
                 ctx.textAlign = "center";
                 ctx.fillText(`シールド HP: ${shieldHealth}`, canvas.width / 2, canvas.height - 35);
@@ -373,7 +393,7 @@
         }
 
         function drawScore() {
-            ctx.font = "16px Arial Black"; 
+            ctx.font = "16px Matemasie";  // Matemasieフォントを適用
             ctx.fillStyle = "#FFF";
             ctx.textAlign = "left";
             ctx.fillText(`スコア: ${score}`, 8, 20);
@@ -418,6 +438,7 @@
 
             if (balls.length === 0) {
                 isGameOver = true;
+                messageText.classList.add('dela-gothic-one-regular'); // Dela Gothic Oneフォントを適用
                 messageText.innerText = 'ゲームオーバー';
                 gameMessage.classList.remove('hidden');
                 checkAndUpdateHighScore(); 
