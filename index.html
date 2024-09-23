@@ -38,13 +38,15 @@
         #gameMessage {
             position: absolute;
             top: 50%;
-            transform: translateY(-50%);
+            left: 50%;
+            transform: translate(-50%, -50%);
             text-align: center;
             background-color: rgba(0, 0, 0, 0.8);
             color: white;
             padding: 20px;
             border-radius: 10px;
             display: none;
+            z-index: 1000; /* メッセージを前面に表示 */
         }
 
         #gameMessage button {
@@ -66,18 +68,15 @@
             display: none;
         }
     </style>
- <h4>made by @kiku_kick</h4>
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
     <button id="restartButton">リスタート</button>
     <div id="gameMessage" class="hidden">
-        <h1 id="messageText"></h1>
-        <button id="nextLevelButton" class="hidden">次のレベルへ</button>
-        <button id="retryButton" class="hidden">リトライ</button>
+        <h1 id="messageText">クリアおめでとう！</h1>
+        <button id="restartButtonInMessage">もう一度プレイ</button>
     </div>
     <script>
-        // Canvas settings
         const canvasWidth = 800;
         const canvasHeight = 600;
         const canvas = document.getElementById('gameCanvas');
@@ -85,40 +84,40 @@
         canvas.width = canvasWidth;
         canvas.height = canvasHeight;
 
-        // Game elements
         const restartButton = document.getElementById('restartButton');
         const gameMessage = document.getElementById('gameMessage');
+        const restartButtonInMessage = document.getElementById('restartButtonInMessage');
         const messageText = document.getElementById('messageText');
-        const nextLevelButton = document.getElementById('nextLevelButton');
-        const retryButton = document.getElementById('retryButton');
 
-        // Paddle and Ball settings
         const paddleHeight = 10;
         const paddleWidth = 100;
+        const paddleSpeed = 7;
         let paddleX = (canvas.width - paddleWidth) / 2;
 
         const ballRadius = 10;
         const initialSpeed = 2;
-        let balls = [];
+        const speedIncreaseFactor = 0.001;
+        let balls = [{ x: canvas.width / 2, y: canvas.height - 30, dx: initialSpeed, dy: -initialSpeed }];
 
-        // Brick settings
-        const brickRowCount = 5; //縦のブロックの数
-        const brickColumnCount = 9;//横 "
+        const brickRowCount = 5;
+        const brickColumnCount = 7;
         const brickWidth = 75;
         const brickHeight = 20;
         const brickPadding = 10;
-        const brickOffsetTop = 25;
+        const brickOffsetTop = 30;
         const brickOffsetLeft = 30;
 
         let bricks = [];
         let rightPressed = false;
         let leftPressed = false;
         let isGameOver = false;
-        let speedIncreaseFactor = 0.0005;
-        let gameLevel = 1;
         let shieldHealth = 0;
+        let currentLevel = 1;
+        const maxLevel = 3;
 
-        // Brick types
+        let score = 0; // スコアの初期化
+        const pointsPerBrick = 10; // 1つのブロックに当たったときの得点
+
         const BRICK_TYPE_NORMAL = 0;
         const BRICK_TYPE_DOUBLE_BALL = 1;
         const BRICK_TYPE_SHIELD = 2;
@@ -128,23 +127,21 @@
             balls = [{ x: canvas.width / 2, y: canvas.height - 30, dx: initialSpeed, dy: -initialSpeed }];
             isGameOver = false;
             shieldHealth = 0;
+            initBricks();
+            gameMessage.classList.add('hidden');
+            draw();
+        }
 
-            // Brick initialization
+        function initBricks() {
             bricks = [];
-            let brickHealth = 1 + Math.floor(gameLevel / 2);
             for (let c = 0; c < brickColumnCount; c++) {
                 bricks[c] = [];
                 for (let r = 0; r < brickRowCount; r++) {
                     const brickType = Math.random() < 0.05 ? BRICK_TYPE_DOUBLE_BALL :
                                       Math.random() < 0.05 ? BRICK_TYPE_SHIELD : BRICK_TYPE_NORMAL;
-                    bricks[c][r] = { x: 0, y: 0, status: brickHealth, type: brickType };
+                    bricks[c][r] = { x: 0, y: 0, status: currentLevel, type: brickType };
                 }
             }
-
-            gameMessage.classList.add('hidden');
-            nextLevelButton.classList.add('hidden');
-            retryButton.classList.add('hidden');
-            draw();
         }
 
         document.addEventListener("keydown", keyDownHandler, false);
@@ -176,6 +173,7 @@
                             if (ball.x > b.x && ball.x < b.x + brickWidth && ball.y > b.y && ball.y < b.y + brickHeight) {
                                 ball.dy = -ball.dy;
                                 b.status--;
+                                score += pointsPerBrick; // スコアを加算
 
                                 if (b.type === BRICK_TYPE_DOUBLE_BALL && b.status === 0) {
                                     cloneBall();
@@ -183,8 +181,12 @@
                                     shieldHealth = 5;
                                 }
 
-                                if (checkAllBricksBroken()) {
-                                    showClearScreen();
+                                if (checkGameClear()) {
+                                    if (currentLevel < maxLevel) {
+                                        showLevelUpMessage();
+                                    } else {
+                                        showGameClearMessage();
+                                    }
                                 }
                             }
                         }
@@ -204,7 +206,7 @@
             balls.push(clonedBall);
         }
 
-        function checkAllBricksBroken() {
+        function checkGameClear() {
             for (let c = 0; c < brickColumnCount; c++) {
                 for (let r = 0; r < brickRowCount; r++) {
                     if (bricks[c][r].status > 0) {
@@ -215,19 +217,24 @@
             return true;
         }
 
-        // Display "クリアおめでとう" and show next level button
-        function showClearScreen() {
-            messageText.textContent = `レベル ${gameLevel} クリアおめでとう！`;
+        function showLevelUpMessage() {
+            messageText.innerText = `レベル ${currentLevel} クリア！次のレベルに進みます`;
             gameMessage.classList.remove('hidden');
-            nextLevelButton.classList.remove('hidden');
             isGameOver = true;
+            setTimeout(() => {
+                gameMessage.classList.add('hidden');
+                levelUp();
+            }, 2000); // 2秒後に次のレベルに進む
         }
 
-        // Display "ゲームオーバー" and show retry button
-        function showGameOverScreen() {
-            messageText.textContent = "ゲームオーバー";
+        function levelUp() {
+            currentLevel++;
+            initGame();
+        }
+
+        function showGameClearMessage() {
+            messageText.innerText = '全レベルクリアおめでとう！';
             gameMessage.classList.remove('hidden');
-            retryButton.classList.remove('hidden');
             isGameOver = true;
         }
 
@@ -260,17 +267,28 @@
 
                         ctx.beginPath();
                         ctx.rect(brickX, brickY, brickWidth, brickHeight);
-                        if (bricks[c][r].type === BRICK_TYPE_DOUBLE_BALL) {
-                            ctx.fillStyle = "#FF6347";
-                        } else if (bricks[c][r].type === BRICK_TYPE_SHIELD) {
-                            ctx.fillStyle = "#FFD700";
-                        } else {
-                            ctx.fillStyle = "#0095DD";
-                        }
+                        ctx.fillStyle = getBrickColor(bricks[c][r]);
                         ctx.fill();
                         ctx.closePath();
+
+                        ctx.font = "16px Arial";
+                        ctx.fillStyle = "#FFF";
+                        ctx.textAlign = "center";
+                        ctx.textBaseline = "middle";
+                        ctx.fillText(bricks[c][r].status, brickX + brickWidth / 2, brickY + brickHeight / 2);
                     }
                 }
+            }
+        }
+
+        function getBrickColor(brick) {
+            switch (brick.type) {
+                case BRICK_TYPE_DOUBLE_BALL:
+                    return "#FF6347";
+                case BRICK_TYPE_SHIELD:
+                    return "#FFD700";
+                default:
+                    return "#0095DD";
             }
         }
 
@@ -284,27 +302,23 @@
             }
         }
 
+        function drawScore() {
+            ctx.font = "16px Arial";
+            ctx.fillStyle = "#FFF";
+            ctx.textAlign = "left";
+            ctx.fillText(`スコア: ${score}`, 8, 20); // スコアの表示位置
+        }
+
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             drawBricks();
             drawBalls();
             drawPaddle();
             drawShield();
+            drawScore(); // スコアを描画
             collisionDetection();
 
             balls.forEach((ball, index) => {
-                if (ball.dx > 0) {
-                    ball.dx += speedIncreaseFactor;
-                } else {
-                    ball.dx -= speedIncreaseFactor;
-                }
-
-                if (ball.dy > 0) {
-                    ball.dy += speedIncreaseFactor;
-                } else {
-                    ball.dy -= speedIncreaseFactor;
-                }
-
                 if (ball.x + ball.dx > canvas.width - ballRadius || ball.x + ball.dx < ballRadius) {
                     ball.dx = -ball.dx;
                 }
@@ -316,26 +330,31 @@
                         ball.dy = -ball.dy;
                     } else {
                         if (shieldHealth > 0) {
-                            ball.dy = -ball.dy;  // Reflect on shield
+                            ball.dy = -ball.dy;
                             shieldHealth--;
                         } else {
-                            balls.splice(index, 1);  // Remove ball from array when lost
+                            balls.splice(index, 1);
                         }
                     }
                 }
+
+                ball.dx += ball.dx > 0 ? speedIncreaseFactor : -speedIncreaseFactor;
+                ball.dy += ball.dy > 0 ? speedIncreaseFactor : -speedIncreaseFactor;
 
                 ball.x += ball.dx;
                 ball.y += ball.dy;
             });
 
-            if (balls.length === 0 && !isGameOver) {
-                showGameOverScreen();  // Only game over if all balls are lost
+            if (balls.length === 0) {
+                isGameOver = true;
+                messageText.innerText = 'ゲームオーバー';
+                gameMessage.classList.remove('hidden');
             }
 
             if (rightPressed && paddleX < canvas.width - paddleWidth) {
-                paddleX += 7;
+                paddleX += paddleSpeed;
             } else if (leftPressed && paddleX > 0) {
-                paddleX -= 7;
+                paddleX -= paddleSpeed;
             }
 
             if (!isGameOver) {
@@ -344,20 +363,18 @@
         }
 
         restartButton.addEventListener('click', () => {
-            gameLevel = 1;
+            currentLevel = 1;
+            score = 0; // スコアをリセット
             initGame();
         });
 
-        nextLevelButton.addEventListener('click', () => {
-            gameLevel++;
+        restartButtonInMessage.addEventListener('click', () => {
+            currentLevel = 1;
+            score = 0; // スコアをリセット
             initGame();
         });
 
-        retryButton.addEventListener('click', () => {
-            initGame();  // Restart the same level on retry
-        });
-
-        initGame();  // Start game on page load
+        initGame();
     </script>
 </body>
 </html>
