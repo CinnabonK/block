@@ -108,38 +108,39 @@
     </div>
 
     <script>
-        const canvasWidth = 800;
-        const canvasHeight = 600;
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        canvas.width = canvasWidth;
-        canvas.height = canvasHeight;
-
         const restartButton = document.getElementById('restartButton');
         const gameMessage = document.getElementById('gameMessage');
         const restartButtonInMessage = document.getElementById('restartButtonInMessage');
         const messageText = document.getElementById('messageText');
-
         const leftButton = document.getElementById('leftButton');
         const rightButton = document.getElementById('rightButton');
 
-        const paddleHeight = 10;
-        const paddleWidth = 100;
-        const paddleSpeed = 7;
+        // スマホ対応のため画面サイズに合わせてキャンバスサイズを変更する
+        let canvasWidth = window.innerWidth * 0.9;
+        let canvasHeight = window.innerHeight * 0.7;
+
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+
+        const paddleHeight = canvasHeight * 0.02;
+        const paddleWidth = canvasWidth * 0.25;
+        const paddleSpeed = canvasWidth * 0.02;
         let paddleX = (canvas.width - paddleWidth) / 2;
 
-        const ballRadius = 10;
-        const initialSpeed = 2;
+        const ballRadius = canvasWidth * 0.02;
+        const initialSpeed = canvasWidth * 0.005;
         const speedIncreaseFactor = 0.001;
         let balls = [{ x: canvas.width / 2, y: canvas.height - 30, dx: initialSpeed, dy: -initialSpeed }];
 
         const brickRowCount = 5;
         const brickColumnCount = 7;
-        const brickWidth = 75;
-        const brickHeight = 20;
+        const brickWidth = (canvasWidth - (brickColumnCount + 1) * 10) / brickColumnCount;
+        const brickHeight = canvasHeight * 0.05;
         const brickPadding = 10;
         const brickOffsetTop = 30;
-        const brickOffsetLeft = 30;
+        const brickOffsetLeft = (canvasWidth - (brickColumnCount * brickWidth + (brickColumnCount - 1) * brickPadding)) / 2;
 
         let bricks = [];
         let rightPressed = false;
@@ -445,6 +446,26 @@
         });
 
         initGame();
+
+        // 画面サイズに応じてキャンバスをリサイズする
+        window.addEventListener('resize', () => {
+            canvasWidth = window.innerWidth * 0.9;
+            canvasHeight = window.innerHeight * 0.7;
+            canvas.width = canvasWidth;
+            canvas.height = canvasHeight;
+
+            paddleWidth = canvasWidth * 0.25;
+            paddleHeight = canvasHeight * 0.02;
+            paddleSpeed = canvasWidth * 0.02;
+            ballRadius = canvasWidth * 0.02;
+
+            // ブロックのリサイズ
+            brickWidth = (canvasWidth - (brickColumnCount + 1) * 10) / brickColumnCount;
+            brickHeight = canvasHeight * 0.05;
+            brickOffsetLeft = (canvasWidth - (brickColumnCount * brickWidth + (brickColumnCount - 1) * brickPadding)) / 2;
+
+            draw(); // リサイズ後に再描画
+        });
     </script>
 </body>
 </html>
