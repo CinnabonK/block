@@ -135,11 +135,11 @@
         let balls = [{ x: canvas.width / 2, y: canvas.height - 30, dx: initialSpeed, dy: -initialSpeed }];
 
         const brickRowCount = 5;
-        const brickColumnCount = 7;
+        const brickColumnCount = 9;
         const brickWidth = (canvasWidth - (brickColumnCount + 1) * 10) / brickColumnCount;
         const brickHeight = canvasHeight * 0.05;
         const brickPadding = 10;
-        const brickOffsetTop = 30;
+        const brickOffsetTop = 25;
         const brickOffsetLeft = (canvasWidth - (brickColumnCount * brickWidth + (brickColumnCount - 1) * brickPadding)) / 2;
 
         let bricks = [];
